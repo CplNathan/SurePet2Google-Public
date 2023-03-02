@@ -1,0 +1,49 @@
+﻿@using SurePet2Google.Blazor.Shared
+
+<EditForm Model="@LoginModel" OnValidSubmit="@HandleValidSubmit" class="compact-form rounded bg-light p-3 shadow my-auto">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="input-group form-outline mb-3">
+        <InputText id="username" class="@UsernameActiveClass" @bind-Value="LoginModel.Username" />
+        <label for="Username" class="form-label">Email Address</label>
+        <div class="form-notch">
+            <div class="form-notch-leading" style="width: 9px;"></div>
+            <div class="form-notch-middle" style="width: 82.5px;"></div>
+            <div class="form-notch-trailing"></div>
+        </div>
+    </div>
+
+    <div class="input-group form-outline">
+        <InputText id="password" type="password" class="@PasswordActiveClass" @bind-Value="LoginModel.Password" />
+        <label for="Password" class="form-label">Password</label>
+        <div class="form-notch">
+            <div class="form-notch-leading" style="width: 9px;"></div>
+            <div class="form-notch-middle" style="width: 57.5px;"></div>
+            <div class="form-notch-trailing"></div>
+        </div>
+
+        <span class="input-group-text p-0">
+            <button type="submit" class="btn btn-primary rounded-end rounded-0 h-100" disabled="@(!context.IsModified() || !context.Validate())" aria-label="Login">
+                <i class="fa-solid fa-right-to-bracket"></i>
+            </button>
+        </span>
+    </div>
+</EditForm>
+
+@code {
+    /* Parameters */
+    [Parameter]
+    public EventCallback<ChangeEventArgs> ValidSubmit { get; set; }
+
+    public LoginModel LoginModel { get; private set; } = new();
+
+    private string UsernameActiveClass => string.IsNullOrEmpty(LoginModel.Username) ? "form-control form-floating" : "form-control form-floating active";
+
+    private string PasswordActiveClass => string.IsNullOrEmpty(LoginModel.Password) ? "form-control" : "form-control active";
+
+    private void HandleValidSubmit()
+    {
+        ValidSubmit.InvokeAsync();
+    }
+}

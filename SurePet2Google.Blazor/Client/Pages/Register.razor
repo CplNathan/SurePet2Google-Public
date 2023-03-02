@@ -1,0 +1,108 @@
+﻿@page "/google/auth"
+@using System.Web;
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.WebUtilities;
+@using SurePet2Google.Blazor.Client.Shared.Forms;
+@using SurePet2Google.Blazor.Shared;
+@inject RequestService AuthService
+@inject NavigationManager Navigation
+@attribute [AllowAnonymous]
+
+<div class="position-absolute">
+    <div class="alert alert-warning w-100 position-relative @LoginErrorClass" role="alert">
+        Unable to authenticate with SurePet services using the supplied credentials.
+    </div>
+</div>
+
+<LoginForm @ref="loginForm" ValidSubmit="@OnValidSubmit" />
+
+@code {
+    public LoginForm? loginForm;
+
+    public RegisterResponse registerState = new();
+
+    private bool ShowLoginError { get; set; }
+
+    public string LoginErrorClass => ShowLoginError ? "" : "d-none";
+
+    [SupplyParameterFromQuery(Name = "client_id")]
+    public string client_id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "redirect_uri")]
+    public string redirect_uri { get; set; } 
+
+    [SupplyParameterFromQuery(Name = "state")]
+    public string state { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+
+        QueryHelpers.ParseQuery(uri.Query).TryGetValue("client_id", out var client_id);
+        QueryHelpers.ParseQuery(uri.Query).TryGetValue("redirect_uri", out var redirect_uri);
+        QueryHelpers.ParseQuery(uri.Query).TryGetValue("state", out var state);
+
+        RegisterModel registerModel = new()
+            {
+                Username = "loopback@localhost.local",
+                Password = "-",
+                Data = new GoogleAuth
+                {
+                    client_id = client_id,
+                    redirect_uri = redirect_uri,
+                    state = state,
+                },
+                request = RequestState.Initial
+            };
+
+        registerState = await AuthService.Register(registerModel) ?? new();
+
+        if (!registerState.success) // Need to validate to prevent bad outbound redirects
+        {
+            var query = HttpUtility.ParseQueryString(string.Empty);
+            query["state"] = state;
+            query["error"] = "1";
+
+            var redirect_uri_processed = new UriBuilder(redirect_uri);
+            redirect_uri_processed.Query = query.ToString();
+
+            Navigation.NavigateTo(redirect_uri_processed.ToString(), true);
+        }
+    }
+
+    protected async Task OnValidSubmit(ChangeEventArgs? args)
+    {
+        registerState.Username = loginForm?.LoginModel.Username ?? "";
+        registerState.Password = loginForm?.LoginModel.Password ?? "";
+
+        var registerResult = await AuthService.Register(registerState);
+
+        var redirectURi = registerResult?.Data.redirect_uri;
+
+        var query = HttpUtility.ParseQueryString(string.Empty);
+        if (registerResult?.success ?? false)
+        {
+            query["state"] = registerResult?.Data.state;
+            query["code"] = registerResult?.code.ToString();
+
+            var redirect_uri_processed = new UriBuilder(redirectURi!);
+            redirect_uri_processed.Query = query.ToString();
+
+            Navigation.NavigateTo(redirect_uri_processed.ToString(), true);
+        }
+        else if (registerResult?.message != ResponseState.InvalidCredentials)
+        {
+            query["state"] = registerResult?.Data.state;
+            query["error"] = registerResult?.code.ToString();
+
+            var redirect_uri_processed = new UriBuilder(redirectURi!);
+            redirect_uri_processed.Query = query.ToString();
+
+            Navigation.NavigateTo(redirect_uri_processed.ToString(), true);
+        }
+        else
+        {
+            ShowLoginError = true;
+        }
+    }
+}
