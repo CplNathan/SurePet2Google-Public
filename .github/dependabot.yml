@@ -5,7 +5,31 @@
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "SurePet2Google.Blazor/Server/" # Location of package manifests
+  - package-ecosystem: "nuget" # See documentation for possible values
+    directory: "/SurePet2Google.Blazor/Server/" # Location of package manifests
     schedule:
-      interval: "weekly"
+      interval: "daily"
+    # Disable version updates for npm dependencies
+    open-pull-requests-limit: 100
+
+      
+  - package-ecosystem: "nuget" # See documentation for possible values
+    directory: "/SurePet2Google.Blazor/Client/" # Location of package manifests
+    schedule:
+      interval: "daily"
+    # Disable version updates for npm dependencies
+    open-pull-requests-limit: 100
+    
+  - package-ecosystem: "nuget" # See documentation for possible values
+    directory: "/SurePet2Google.Blazor/Shared/" # Location of package manifests
+    schedule:
+      interval: "daily"
+    # Disable version updates for npm dependencies
+    open-pull-requests-limit: 100
+    
+  - package-ecosystem: "nuget" # See documentation for possible values
+    directory: "/GoogleHelper/" # Location of package manifests
+    schedule:
+      interval: "daily"
+    # Disable version updates for npm dependencies
+    open-pull-requests-limit: 100
