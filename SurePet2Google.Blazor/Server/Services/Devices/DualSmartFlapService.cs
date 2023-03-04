@@ -71,7 +71,7 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
                 {
                     _ = Task.Run(async () =>
                     {
-                        var completedSuccess = Task.WaitAll(new Task[] { lockExecute }, 7500);
+                        var completedSuccess = Task.WaitAll(new Task[] { lockExecute }, 10000);
 
                         JsonObject followUpData = new JsonObject()
                         {
