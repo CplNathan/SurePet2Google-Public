@@ -2,7 +2,7 @@
 A web application which can be used to control the locking of your SurePetcare Bridge enabled devices through the Google assistant, automatically adds compatible devices to your home, easy to extend, automatically uses visitor announcements to announce when pets come and go through assistant devices.
 
 ## Features
-* Visitor announcements/object detection (leaving and entering for pets)
+* Visitor announcements/object detection (leaving and entering for pets, peeking etc)
 * Unlock and lock ability
 * Battery status reporting
 * Routines support
@@ -11,21 +11,21 @@ A web application which can be used to control the locking of your SurePetcare B
 ### Google
 ##### Cloud/Actions Console
 *TODO*
+- https://developers.home.google.com/cloud-to-cloud/project/create
+- https://developers.home.google.com/cloud-to-cloud/get-started
 ##### Homegraph
 *TODO*
-### Container
-*TODO*
-
-## Notes
+- https://developers.home.google.com/cloud-to-cloud/primer/home-graph
+- https://developers.home.google.com/reference/home-graph/rest
+- https://developers.google.com/api-client-library/dotnet/guide/aaa_client_secrets
+### Docker
 *TODO*
 
 ## Future Development
 Time permitting I would like to improve this in the following areas:
+- Matter Support
 - Unit Tests
-- Add support for other products
-- Render a camera stream which shows the status of pet location as the 'hub'
-- More intents?
-- Code cleanup (many areas)
+- More Supported Products
 
 ## License/Contributions
 Licensed under MIT license, please see enclosed license file.
