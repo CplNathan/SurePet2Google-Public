@@ -1,7 +1,6 @@
 ﻿@page "/google/auth"
 @using System.Web;
 @using Microsoft.AspNetCore.Authorization;
-@using Microsoft.AspNetCore.WebUtilities;
 @using SurePet2Google.Blazor.Client.Shared.Forms;
 @using SurePet2Google.Blazor.Shared;
 @inject RequestService AuthService
@@ -38,9 +37,7 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
 
-        QueryHelpers.ParseQuery(uri.Query).TryGetValue("client_id", out var client_id);
-        QueryHelpers.ParseQuery(uri.Query).TryGetValue("redirect_uri", out var redirect_uri);
-        QueryHelpers.ParseQuery(uri.Query).TryGetValue("state", out var state);
+        var query = HttpUtility.ParseQueryString(uri.Query);
 
         RegisterModel registerModel = new()
             {
@@ -48,9 +45,9 @@
                 Password = "-",
                 Data = new GoogleAuth
                 {
-                    client_id = client_id,
-                    redirect_uri = redirect_uri,
-                    state = state,
+                    client_id = query["client_id"],
+                    redirect_uri = query["redirect_uri"],
+                    state = query["state"],
                 },
                 request = RequestState.Initial
             };
@@ -59,12 +56,12 @@
 
         if (!registerState.success) // Need to validate to prevent bad outbound redirects
         {
-            var query = HttpUtility.ParseQueryString(string.Empty);
-            query["state"] = state;
-            query["error"] = "1";
+            var responseQuery = HttpUtility.ParseQueryString(string.Empty);
+            responseQuery["state"] = state;
+            responseQuery["error"] = "1";
 
             var redirect_uri_processed = new UriBuilder(redirect_uri);
-            redirect_uri_processed.Query = query.ToString();
+            redirect_uri_processed.Query = responseQuery.ToString();
 
             Navigation.NavigateTo(redirect_uri_processed.ToString(), true);
         }

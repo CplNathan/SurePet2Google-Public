@@ -1,4 +1,4 @@
-﻿namespace SurePet2Google.Blazor.Server.Models.SurePet.Auth
+﻿namespace SurePet2Google.Blazor.Server.Models.Responses.Auth
 {
 
     public class AuthResponse

@@ -1,7 +1,7 @@
 using GoogleHelper.Json;
 using GoogleHelper.Services;
 using SurePet2Google.Blazor.Server.Context;
-using SurePet2Google.Blazor.Server.Models;
+using SurePet2Google.Blazor.Server.Models.Devices;
 using System.Text.Json.Nodes;
 
 namespace SurePet2Google.Blazor.Server.Services.Devices
@@ -22,17 +22,17 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
         }
 
         // THIS WAS HELLLLLLLLLLLLL ON EARTH BLOODY FIRE TO DEBUG WOW.
-        public override async Task<TResponse> ExecuteAsyncImplementation<TResponse>(PetContext session, FlapModel deviceModel, string deviceId, string requestId, JsonObject data)
+        public override async Task<TResponse> ExecuteAsyncImplementation<TResponse>(PetContext session, FlapModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token)
         {
             CancellationTokenSource cancellationToken = new();
 
             LockStatus lockRequest = data["lock"]?.GetValue<bool?>() ?? true ? LockStatus.EnterOnly : LockStatus.Unlocked;
             string? followUpToken = data["followUpToken"]?.GetValue<string?>();
 
-            Task<LockStatus?> lockExecute = this.SurePetService.UpdateLock(session.SurePetBearerToken, deviceId, lockRequest, cancellationToken.Token);
-            Task<double?> batteryQuery = this.SurePetService.GetBattery(session.SurePetBearerToken, deviceId, cancellationToken.Token);
-            Task<bool?> onlineQuery = this.SurePetService.GetOnline(session.SurePetBearerToken, deviceId, cancellationToken.Token);
-            Task<LockStatus?> lockQuery = this.SurePetService.GetLock(session.SurePetBearerToken, deviceId, cancellationToken.Token);
+            Task<LockStatus?> lockExecute = this.SurePetService.UpdateLock(session.SurePetBearerToken, deviceId, lockRequest, token);
+            Task<double?> batteryQuery = this.SurePetService.GetBattery(session.SurePetBearerToken, deviceId, token);
+            Task<bool?> onlineQuery = this.SurePetService.GetOnline(session.SurePetBearerToken, deviceId, token);
+            Task<LockStatus?> lockQuery = this.SurePetService.GetLock(session.SurePetBearerToken, deviceId, token);
 
             if (lockQuery is null)
             {
@@ -52,8 +52,7 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
             }
             else
             {
-                Task[] tasks = new Task[] { batteryQuery, lockExecute, lockQuery, onlineQuery };
-                bool allComplete = Task.WaitAll(tasks, 150);
+                bool allCompleted = Task.WaitAll(new Task[] { batteryQuery, lockExecute, lockQuery, onlineQuery }, 2500);
 
                 if ((await onlineQuery) == false)
                 {
@@ -67,11 +66,11 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
                         errorCode = "deviceOffline"
                     };
                 }
-                else if (followUpToken is not null && !allComplete)
+                else if (followUpToken is not null && !allCompleted)
                 {
-                    _ = Task.Run(async () =>
+                    new Thread(async () =>
                     {
-                        var completedSuccess = Task.WaitAll(new Task[] { lockExecute }, 7500);
+                        var completedSuccess = Task.WaitAll(new Task[] { lockExecute }, 10000);
 
                         JsonObject followUpData = new JsonObject()
                         {
@@ -93,9 +92,7 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
                         };
 
                         await this.GoogleService.ProvideFollowUp(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], session.GoogleAccessToken, requestId, deviceId, "LockUnlock", followUpData);
-                    });
-
-                    Task.WaitAll(lockQuery);
+                    }).Start();
 
                     return (TResponse)new ExecuteDeviceData()
                     {
@@ -111,8 +108,6 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
                 }
                 else
                 {
-                    Task.WaitAll(batteryQuery, lockExecute);
-
                     return (TResponse)new ExecuteDeviceData()
                     {
                         status = "SUCCESS",

@@ -1,10 +1,12 @@
 ﻿using GoogleHelper.Context;
-using SurePet2Google.Blazor.Server.Models;
+using SurePet2Google.Blazor.Server.Models.Responses.Pets;
 
 namespace SurePet2Google.Blazor.Server.Context
 {
     public class PetContext : BaseContext
     {
+        public List<PetDatum> Pets { get; set; }
+
         public string SurePetBearerToken { get; set; }
 
         public string GoogleAccessToken { get; set; }
@@ -19,10 +21,7 @@ namespace SurePet2Google.Blazor.Server.Context
             this.Username = username;
             this.Password = passsword;
             this.SurePetBearerToken = sessionId;
-            this.Devices = new()
-            {
-                { "123", new FlapModel() }
-            };
+            this.Devices = new();
         }
     }
 }

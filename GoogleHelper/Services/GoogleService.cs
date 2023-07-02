@@ -142,7 +142,7 @@ namespace GoogleHelper.Services
             }
         }
 
-        public async Task<GoogleIntentResponse?> HandleGoogleResponse(TContext context, GoogleIntentRequest request, IEnumerable<IDeviceService> supportedDevices, string sessionId)
+        public async Task<GoogleIntentResponse?> HandleGoogleResponse(TContext context, GoogleIntentRequest request, IEnumerable<IDeviceService> supportedDevices, string sessionId, CancellationToken token)
         {
             if (context is null)
             {
@@ -211,7 +211,7 @@ namespace GoogleHelper.Services
 
                                         string parsedCommand = execution.command.Split("action.devices.commands.")[1];
 
-                                        Dictionary<string, Task<ExecuteDeviceData>> deviceExecuteTasks = groupedServiceModels.SelectMany(gp => gp.Select(device => (device.Key, gp.Key.ExecuteAsync<ExecuteDeviceData>(context, device.Value, device.Key, request.requestId/*parsedCommand*/, execution._params))))
+                                        Dictionary<string, Task<ExecuteDeviceData>> deviceExecuteTasks = groupedServiceModels.SelectMany(gp => gp.Select(device => (device.Key, gp.Key.ExecuteAsync<ExecuteDeviceData>(context, device.Value, device.Key, request.requestId/*parsedCommand*/, execution._params, token))))
                                             .ToDictionary(item => item.Key, item => item.Item2);
 
                                         IEnumerable<(string First, ExecuteDeviceData Second)> deviceExecuteResults = deviceExecuteTasks.Keys.Zip(await Task.WhenAll(deviceExecuteTasks.Values));

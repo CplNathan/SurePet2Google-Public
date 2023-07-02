@@ -1,7 +1,9 @@
+using Flurl.Http;
 using GoogleHelper.Services;
 using SurePet2Google.Blazor.Server.Context;
 using SurePet2Google.Blazor.Server.Services;
 using SurePet2Google.Blazor.Server.Services.Devices;
+using SurePet2Google.Blazor.Server.Services.Notifications;
 
 namespace SurePet2Google.Blazor.Server
 {
@@ -26,11 +28,24 @@ namespace SurePet2Google.Blazor.Server
             builder.Services.AddScoped(typeof(IDeviceService), typeof(DualSmartFlapService));
             builder.Services.AddScoped(typeof(IDeviceService), typeof(SmartHubService));
 
+            FlurlHttp.Configure(settings =>
+            {
+                Action<FlurlCall> beforeCall = (httpCall) =>
+                {
+                    httpCall.Request.Headers.Add("User-Agent", "Mozilla/5.0 (compatible; SurePet2Google/ProdContainer; +github.com/CplNathan/SurePet2Google-Public)");
+                };
+
+                settings.BeforeCall = beforeCall;
+                settings.BeforeCallAsync = async (httpCall) => await Task.Run(() => beforeCall.Invoke(httpCall));
+                settings.HttpClientFactory = new GlobalHttpContext();
+            });
+
             builder.Services.AddSingleton<GoogleService<PetContext>>();
             builder.Services.AddSingleton<SurePetService>();
 
             builder.Services.AddSingleton<PersistenceService>();
-            builder.Services.AddSingleton<NotificationService>();
+            //builder.Services.AddSingleton<INotificationService, NotificationServiceV1>();
+            builder.Services.AddSingleton<INotificationService, NotificationServiceV2>();
 
             WebApplication app = builder.Build();
 
@@ -55,9 +70,9 @@ namespace SurePet2Google.Blazor.Server
             app.MapFallbackToFile("index.html");
 
             IServiceProvider serviceProvider = app.Services;
-            NotificationService? notificationService = serviceProvider.GetService<NotificationService>();
+            INotificationService? notificationService = serviceProvider.GetService<INotificationService>();
 
-            notificationService?.StartLoop();
+            notificationService?.StartNotifications();
 
             app.Run();
         }

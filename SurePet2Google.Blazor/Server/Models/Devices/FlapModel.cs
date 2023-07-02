@@ -1,7 +1,7 @@
 ﻿using GoogleHelper.Models;
 using System.Text.Json.Nodes;
 
-namespace SurePet2Google.Blazor.Server.Models
+namespace SurePet2Google.Blazor.Server.Models.Devices
 {
     public class FlapModel : BaseDeviceModel
     {
