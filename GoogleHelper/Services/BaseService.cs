@@ -9,7 +9,7 @@ namespace GoogleHelper.Services
     {
         public Task<TResponse> QueryAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId)
             where TResponse : QueryDeviceData, new();
-        public Task<TResponse> ExecuteAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, string requestId, JsonObject data)
+        public Task<TResponse> ExecuteAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token)
             where TResponse : ExecuteDeviceData, new();
         public Task<bool> FetchAsync(BaseContext session, BaseDeviceModel deviceModel, string deviceId, bool forceFetch = false);
 
@@ -40,7 +40,7 @@ namespace GoogleHelper.Services
 
         public abstract Task<TResponse> QueryAsyncImplementation<TResponse>(TContext session, TModel deviceModel, string deviceId) where TResponse : QueryDeviceData, new();
 
-        public abstract Task<TResponse> ExecuteAsyncImplementation<TResponse>(TContext session, TModel deviceModel, string deviceId, string requestId, JsonObject data) where TResponse : ExecuteDeviceData, new();
+        public abstract Task<TResponse> ExecuteAsyncImplementation<TResponse>(TContext session, TModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token) where TResponse : ExecuteDeviceData, new();
 
         public abstract Task<bool> FetchAsyncImplementation(TContext session, TModel deviceModel, string deviceId, bool forceFetch = false);
 
@@ -49,9 +49,9 @@ namespace GoogleHelper.Services
             return await this.QueryAsyncImplementation<TResponse>((TContext)session, (TModel)deviceModel, deviceId);
         }
 
-        public async Task<TResponse> ExecuteAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, string requestId, JsonObject data) where TResponse : ExecuteDeviceData, new()
+        public async Task<TResponse> ExecuteAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token) where TResponse : ExecuteDeviceData, new()
         {
-            return await this.ExecuteAsyncImplementation<TResponse>((TContext)session, (TModel)deviceModel, deviceId, requestId, data);
+            return await this.ExecuteAsyncImplementation<TResponse>((TContext)session, (TModel)deviceModel, deviceId, requestId, data, token);
         }
 
         public async Task<bool> FetchAsync(BaseContext session, BaseDeviceModel deviceModel, string deviceId, bool forceFetch = false)

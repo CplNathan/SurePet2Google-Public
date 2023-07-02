@@ -1,4 +1,4 @@
-﻿namespace SurePet2Google.Blazor.Server.Models.SurePet.API.Devices
+﻿namespace SurePet2Google.Blazor.Server.Models.Responses.Devices
 {
     public class GetDevices
     {

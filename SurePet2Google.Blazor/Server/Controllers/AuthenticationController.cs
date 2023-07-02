@@ -1,7 +1,7 @@
 ﻿using GoogleHelper.Services;
 using Microsoft.AspNetCore.Mvc;
 using SurePet2Google.Blazor.Server.Context;
-using SurePet2Google.Blazor.Server.Models.SurePet.API.Devices;
+using SurePet2Google.Blazor.Server.Models.Responses.Devices;
 using SurePet2Google.Blazor.Server.Services;
 using SurePet2Google.Blazor.Shared;
 

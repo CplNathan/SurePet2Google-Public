@@ -1,4 +1,4 @@
-﻿namespace SurePet2Google.Blazor.Server.Models.SurePet.API.Pets
+﻿namespace SurePet2Google.Blazor.Server.Models.Responses.Pets
 {
     public enum PetPosition
     {

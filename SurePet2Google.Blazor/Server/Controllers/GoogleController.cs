@@ -29,7 +29,7 @@ namespace SurePet2Google.Blazor.Server.Controllers
 
         [HttpPost]
         [Consumes("application/json")]
-        public async Task<ActionResult> Fulfillment([FromBody] GoogleIntentRequest request)
+        public async Task<ActionResult> Fulfillment([FromBody] GoogleIntentRequest request, CancellationToken token)
         {
             //contacts.Save("data.xml");
 
@@ -38,7 +38,7 @@ namespace SurePet2Google.Blazor.Server.Controllers
 
             PetContext? context = this.PersistenceService.GetPetContextByAccess(bearer);
 
-            GoogleIntentResponse response = await this.GoogleService.HandleGoogleResponse(context, request, this.SupportedDevices, bearer);
+            GoogleIntentResponse response = await this.GoogleService.HandleGoogleResponse(context, request, this.SupportedDevices, bearer, token);
 
             return this.Json(response);
         }

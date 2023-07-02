@@ -2,9 +2,10 @@
 using Flurl.Http;
 using GoogleHelper.Models;
 using GoogleHelper.Services;
-using SurePet2Google.Blazor.Server.Models.SurePet.API.Devices;
-using SurePet2Google.Blazor.Server.Models.SurePet.API.Pets;
-using SurePet2Google.Blazor.Server.Models.SurePet.Auth;
+using SurePet2Google.Blazor.Server.Models.Responses.Auth;
+using SurePet2Google.Blazor.Server.Models.Responses.Devices;
+using SurePet2Google.Blazor.Server.Models.Responses.Pets;
+using SurePet2Google.Blazor.Server.Models.Responses.Timeline;
 
 namespace SurePet2Google.Blazor.Server.Services
 {
@@ -23,195 +24,153 @@ namespace SurePet2Google.Blazor.Server.Services
         public static string AuthEndpoint = "auth/login";
         public static string DevicesEndpoint = "device";
         public static string PetEndpoint = "pet";
+        public static string TimelineEndpoint = "timeline";
         public static string PositionEndpoint = "pet/{pet}/position";
         public static string ControlEndpoint = "device/{device}/control";
         public static string StatusEndpoint = "device/{device}/status";
 
+        private IFlurlRequest MakeRequest(string request, string endpoint, string bearer = "")
+        {
+            IFlurlRequest flurlRequest = request
+                .AppendPathSegment(endpoint)
+                .WithOAuthBearerToken(bearer);
+
+            return flurlRequest;
+        }
+
         public async Task<string?> AuthenticateWithCredentials(string username, string password, CancellationToken cancellationToken)
         {
-            try
-            {
-                AuthResponse response = await BaseUrl
-                    .AppendPathSegment(AuthEndpoint)
-                    .PostUrlEncodedAsync(
-                        new Dictionary<string, string>()
-                        {
-                            { "email_address", username },
-                            { "password", password },
-                            { "device_id", Random.Shared.NextInt64().ToString() }
-                        }, cancellationToken: cancellationToken)
-                    .ReceiveJson<AuthResponse>();
+            AuthResponse response = await this
+                .MakeRequest(BaseUrl, AuthEndpoint)
+                .PostUrlEncodedAsync(
+                    new Dictionary<string, string>()
+                    {
+                        { "email_address", username },
+                        { "password", password },
+                        { "device_id", Random.Shared.NextInt64().ToString() }
+                    }, cancellationToken: cancellationToken)
+                .ReceiveJson<AuthResponse>();
 
-                return response.data.token;
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return response?.data?.token ?? string.Empty;
         }
 
         public async Task<GetPosition?> GetPosition(string bearer, string petId, CancellationToken cancellationToken)
         {
-            try
-            {
-                GetPosition response = await BaseUrl
-                    .AppendPathSegment(PositionEndpoint.Replace("{pet}", petId))
-                    .WithOAuthBearerToken(bearer)
-                    .GetJsonAsync<GetPosition>(cancellationToken: cancellationToken);
+            GetPosition response = await this
+                .MakeRequest(BaseUrl, PositionEndpoint.Replace("{pet}", petId), bearer)
+                .GetJsonAsync<GetPosition>(cancellationToken: cancellationToken);
 
-                return response;
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return response;
         }
 
         public async Task<GetPets?> GetPets(string bearer, CancellationToken cancellationToken)
-        {
-            try
-            {
-                GetPets response = await BaseUrl
-                    .AppendPathSegment(PetEndpoint)
-                    .SetQueryParams(new Dictionary<string, string>()
-                    {
-                        { "with", "[photo,breed,conditions,tag,food_type,species,position,status]" }
-                    })
-                    .WithOAuthBearerToken(bearer)
-                    .GetJsonAsync<GetPets>(cancellationToken: cancellationToken);
+            => await this.GetPets(bearer, cancellationToken, "photo", "breed", "conditions", "tag", "food_type", "species", "position", "status");
 
-                return response;
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+        public async Task<GetPets?> GetPets(string bearer, CancellationToken cancellationToken, params string[] flags)
+        {
+            GetPets response = await this
+                .MakeRequest(BaseUrl, PetEndpoint, bearer)
+                .SetQueryParams(new Dictionary<string, string>()
+                {
+                    { "with", $"[{string.Join(",", flags)}]" }
+                })
+                .GetJsonAsync<GetPets>(cancellationToken: cancellationToken);
+
+            return response;
         }
 
         public async Task<GetDevices?> GetDevices(string bearer, CancellationToken cancellationToken)
         {
-            try
-            {
-                GetDevices response = await BaseUrl
-                    .AppendPathSegment(DevicesEndpoint)
-                    .SetQueryParams(new Dictionary<string, string>()
-                    {
-                        { "with", "[children,tags,control,status]" }
-                    })
-                    .WithOAuthBearerToken(bearer)
-                    .GetJsonAsync<GetDevices>(cancellationToken: cancellationToken);
+            GetDevices response = await this
+                .MakeRequest(BaseUrl, DevicesEndpoint, bearer)
+                .SetQueryParams(new Dictionary<string, string>()
+                {
+                    { "with", "[children,tags,control,status]" }
+                })
+                .GetJsonAsync<GetDevices>(cancellationToken: cancellationToken);
 
-                return response;
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return response;
         }
 
         public async Task<LockStatus?> GetLock(string bearer, string deviceId, CancellationToken cancellationToken)
         {
-            try
-            {
-                GetDevice response = await BaseUrl
-                    .AppendPathSegment(StatusEndpoint.Replace("{device}", deviceId))
-                    .WithOAuthBearerToken(bearer)
-                    .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
+            GetDevice response = await this
+                .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
+                .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
 
-                int? lockData = response.data["locking"]?["mode"]?.GetValue<int?>();
+            int? lockData = response?.data?["locking"]?["mode"]?.GetValue<int?>();
 
-                return (LockStatus?)lockData ?? null;
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return (LockStatus?)lockData ?? null;
         }
 
         public async Task<double?> GetBattery(string bearer, string deviceId, CancellationToken cancellationToken)
         {
-            try
-            {
-                GetDevice response = await BaseUrl
-                    .AppendPathSegment(StatusEndpoint.Replace("{device}", deviceId))
-                    .WithOAuthBearerToken(bearer)
-                    .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
+            GetDevice response = await this
+                .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
+                .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
 
-                return response.data["battery"]?.GetValue<double?>();
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return response?.data?["battery"]?.GetValue<double?>();
         }
 
         public async Task<bool?> GetOnline(string bearer, string deviceId, CancellationToken cancellationToken)
         {
-            try
-            {
-                GetDevice response = await BaseUrl
-                    .AppendPathSegment(StatusEndpoint.Replace("{device}", deviceId))
-                    .WithOAuthBearerToken(bearer)
-                    .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
+            GetDevice response = await this
+                .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
+                .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
 
-                return response.data["online"]?.GetValue<bool?>();
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return response?.data?["online"]?.GetValue<bool?>();
+        }
+
+        public async Task<GetTimeline?> GetTimeline(string bearer, CancellationToken cancellationToken)
+        {
+            GetTimeline response = await this
+                .MakeRequest(BaseUrl, TimelineEndpoint, bearer)
+                .GetJsonAsync<GetTimeline>(cancellationToken: cancellationToken);
+
+            return response;
         }
 
         public async Task<LockStatus?> UpdateLock(string bearer, string deviceId, LockStatus newStatus, CancellationToken cancellationToken)
         {
-            try
-            {
-                ControlDevice response = await BaseUrl
-                    .AppendPathSegment(ControlEndpoint.Replace("{device}", deviceId))
-                    .WithOAuthBearerToken(bearer)
-                    .PutJsonAsync(
-                        new Dictionary<string, string>()
-                        {
-                            { "locking", ((int)newStatus).ToString() },
-                        }, cancellationToken: cancellationToken)
-                    .ReceiveJson<ControlDevice>();
+            ControlDevice response = await this
+                .MakeRequest(BaseUrl, ControlEndpoint.Replace("{device}", deviceId), bearer)
+                .PutJsonAsync(
+                    new Dictionary<string, string>()
+                    {
+                        { "locking", ((int)newStatus).ToString() },
+                    }, cancellationToken: cancellationToken)
+                .ReceiveJson<ControlDevice>();
 
-                int? lockData = response.data["locking"]?.GetValue<int?>();
+            int? lockData = response?.data?["locking"]?.GetValue<int?>();
 
-                return (LockStatus?)lockData ?? null;
-            }
-            catch (FlurlHttpException ex)
-            {
-                Console.WriteLine(ex.ToString());
-                return null;
-            }
+            return (LockStatus?)lockData ?? null;
         }
 
         public Dictionary<string, BaseDeviceModel> ParseDevices(GetDevices devices, IEnumerable<IDeviceService> supportedDevices)
         {
             Dictionary<string, BaseDeviceModel> parsedDevices = new();
 
-            foreach (Datum device in devices.data)
+            foreach (Datum device in devices.data ?? Enumerable.Empty<Datum>())
             {
                 string productId = device.product_id.ToString();
                 IDeviceService? supportedDevice = supportedDevices.FirstOrDefault(model => model.ModelIdentifiers.Contains(productId));
                 if (supportedDevice == null)
                 {
+                    Console.WriteLine($"Unable to create device, unsupported type for product {device.product_id}");
                     continue;
                 }
 
                 string deviceId = device.id.ToString();
 
-                BaseDeviceModel? newDevice = (BaseDeviceModel)Activator.CreateInstance(supportedDevice.ModelType);
-                newDevice.Name = device.name;
-                newDevice.HardwareVersion = device.version;
+                BaseDeviceModel? newDevice = (BaseDeviceModel?)Activator.CreateInstance(supportedDevice.ModelType);
+                if (newDevice == null)
+                {
+                    Console.WriteLine($"Unable to create device, can not initialize type for {supportedDevice.ModelType}");
+                    continue;
+                }
+
+                newDevice.Name = device.name ?? string.Empty;
+                newDevice.HardwareVersion = device.version ?? "Unknown";
 
                 parsedDevices.Add(deviceId, newDevice);
             }

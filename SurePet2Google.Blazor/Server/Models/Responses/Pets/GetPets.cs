@@ -1,6 +1,6 @@
-namespace SurePet2Google.Blazor.Server.Models.SurePet.API.Pets
+namespace SurePet2Google.Blazor.Server.Models.Responses.Pets
 {
-
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public class GetPets
     {
         public PetDatum[]? data { get; set; }

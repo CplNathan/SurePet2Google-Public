@@ -1,7 +1,7 @@
 using GoogleHelper.Json;
 using GoogleHelper.Services;
 using SurePet2Google.Blazor.Server.Context;
-using SurePet2Google.Blazor.Server.Models;
+using SurePet2Google.Blazor.Server.Models.Devices;
 using System.Text.Json.Nodes;
 
 namespace SurePet2Google.Blazor.Server.Services.Devices
@@ -21,9 +21,9 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
             this.Configuration = configuration;
         }
 
-        public override async Task<TResponse> ExecuteAsyncImplementation<TResponse>(PetContext session, HubModel deviceModel, string deviceId, string requestId, JsonObject data)
+        public override async Task<TResponse> ExecuteAsyncImplementation<TResponse>(PetContext session, HubModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token)
         {
-            return new();
+            return await Task.Run(() => new TResponse());
         }
 
         public override Task<bool> FetchAsyncImplementation(PetContext session, HubModel deviceModel, string deviceId, bool forceFetch = false)
@@ -33,11 +33,12 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
 
         public override async Task<TResponse> QueryAsyncImplementation<TResponse>(PetContext session, HubModel deviceModel, string deviceId)
         {
-            return (TResponse)(QueryDeviceData)new LockDeviceData()
+            return await Task.Run(() =>
+            (TResponse)(QueryDeviceData)new LockDeviceData()
             {
                 online = true,
                 status = "SUCCESS"
-            };
+            });
         }
 
         // https://developers.home.google.com/cloud-to-cloud/guides/camera#response
@@ -45,7 +46,7 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
         private string GetCameraStreamUrl()
         {
             // TODO: make stream service
-            return null;
+            return string.Empty;
         }
     }
 }
