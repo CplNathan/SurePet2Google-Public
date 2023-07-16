@@ -1,4 +1,4 @@
-﻿using GoogleHelper.Services;
+using GoogleHelper.Services;
 using SurePet2Google.Blazor.Server.Context;
 using SurePet2Google.Blazor.Server.Models.Responses.Pets;
 
@@ -21,7 +21,7 @@ namespace SurePet2Google.Blazor.Server.Services.Notifications
             {
                 foreach (KeyValuePair<string, PetContext> context in this.PersistenceService.GooglePetContextReadOnly)
                 {
-                    Dictionary<string, string> newEvents = new();
+                    List<(string device, string text)> newEvents = new();
 
                     if (!context.Value.Pets?.Any() ?? true)
                     {
@@ -38,20 +38,20 @@ namespace SurePet2Google.Blazor.Server.Services.Notifications
                         continue;
 
                     results.Where(x => x.movements.Any(y => this.peekedType.Contains(y.type))).ToList()
-                        .ForEach(x => newEvents.Add(x.movements[0].device_id.ToString(), x.pets?.Any() ?? false ? $"{x.pets[0].name} Peeked" : "An Animal"));
+                        .ForEach(x => newEvents.Add((x.movements[0].device_id.ToString(), x.pets?.Any() ?? false ? $"{x.pets[0].name} Peeked" : "An Animal")));
 
                     results.Where(x => x.movements.Any(y => y.type == Models.Responses.Timeline.MovementType.Moved && y.direction != Models.Responses.Timeline.Direction.Looked)).Where(x => x.pets.Any()).ToList()
-                        .ForEach(x => newEvents.Add(x.movements[0].device_id.ToString(), $"{x.pets[0].name} {(x.movements[0].direction == Models.Responses.Timeline.Direction.Left ? "Left" : "Entered")}"));
+                        .ForEach(x => newEvents.Add((x.movements[0].device_id.ToString(), $"{x.pets[0].name} {(x.movements[0].direction == Models.Responses.Timeline.Direction.Left ? "Left" : "Entered")}")));
 
                     foreach (var movementEvent in newEvents)
                     {
-                        KeyValuePair<string, GoogleHelper.Models.BaseDeviceModel> triggeredDevice = context.Value.Devices.FirstOrDefault(device => device.Key == movementEvent.Key);
+                        KeyValuePair<string, GoogleHelper.Models.BaseDeviceModel> triggeredDevice = context.Value.Devices.FirstOrDefault(device => device.Key == movementEvent.device);
                         if (triggeredDevice.Value is null)
                         {
                             continue;
                         }
 
-                        this.GoogleService.ProvideObjectDetection(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], context.Value.GoogleAccessToken, triggeredDevice.Key, movementEvent.Value);
+                        _ = this.GoogleService.ProvideObjectDetection(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], context.Value.GoogleAccessToken, triggeredDevice.Key, movementEvent.text);
                     }
                 }
 
