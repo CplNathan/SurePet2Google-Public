@@ -22,7 +22,6 @@ namespace SurePet2Google.Blazor.Server
             builder.Services.AddRazorPages();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
             builder.Services.AddLogging();
 
             builder.Services.AddScoped(typeof(IDeviceService), typeof(DualSmartFlapService));
@@ -52,8 +51,6 @@ namespace SurePet2Google.Blazor.Server
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
                 app.UseWebAssemblyDebugging();
             }
 
