@@ -1,4 +1,4 @@
-﻿namespace SurePet2Google.Blazor.Server.Models.Responses.Timeline
+namespace SurePet2Google.Blazor.Server.Models.Responses.Timeline
 {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
@@ -12,8 +12,8 @@
     public enum MovementType
     {
         UnknownPeeked = 13,
-        UnknownPeeked2 = 11,
-        Moved = 6,
+        UnknownMoved = 11,
+        KnownMoved = 6,
         KnownPeeked = 4,
     }
 
