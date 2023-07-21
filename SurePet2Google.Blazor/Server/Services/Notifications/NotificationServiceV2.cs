@@ -13,7 +13,8 @@ namespace SurePet2Google.Blazor.Server.Services.Notifications
 
         private DateTime lastUpdated = DateTime.UtcNow;
 
-        private List<Models.Responses.Timeline.MovementType> peekedType = new List<Models.Responses.Timeline.MovementType>() { Models.Responses.Timeline.MovementType.UnknownPeeked2, Models.Responses.Timeline.MovementType.UnknownPeeked, Models.Responses.Timeline.MovementType.KnownPeeked };
+        private List<Models.Responses.Timeline.MovementType> peekedType = new List<Models.Responses.Timeline.MovementType>() { Models.Responses.Timeline.MovementType.UnknownPeeked, Models.Responses.Timeline.MovementType.KnownPeeked };
+        private List<Models.Responses.Timeline.MovementType> movedType = new List<Models.Responses.Timeline.MovementType>() { Models.Responses.Timeline.MovementType.UnknownMoved, Models.Responses.Timeline.MovementType.KnownMoved };
 
         protected override async Task DoNotifications()
         {
@@ -40,8 +41,8 @@ namespace SurePet2Google.Blazor.Server.Services.Notifications
                     results.Where(x => x.movements.Any(y => this.peekedType.Contains(y.type))).ToList()
                         .ForEach(x => newEvents.Add((x.movements[0].device_id.ToString(), x.pets?.Any() ?? false ? $"{x.pets[0].name} Peeked" : "An Animal")));
 
-                    results.Where(x => x.movements.Any(y => y.type == Models.Responses.Timeline.MovementType.Moved && y.direction != Models.Responses.Timeline.Direction.Looked)).Where(x => x.pets.Any()).ToList()
-                        .ForEach(x => newEvents.Add((x.movements[0].device_id.ToString(), $"{x.pets[0].name} {(x.movements[0].direction == Models.Responses.Timeline.Direction.Left ? "Left" : "Entered")}")));
+                    results.Where(x => x.movements.Any(y => this.movedType.Contains(y.type) && y.direction != Models.Responses.Timeline.Direction.Looked)).Where(x => x.pets.Any()).ToList()
+                        .ForEach(x => newEvents.Add((x.movements[0].device_id.ToString(), (x.pets?.Any() ?? false ? x.pets[0].name : "An Animal") + " " + (x.movements[0].direction == Models.Responses.Timeline.Direction.Left ? "Left" : "Entered"))));
 
                     foreach (var movementEvent in newEvents)
                     {
