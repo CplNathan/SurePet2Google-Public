@@ -53,6 +53,19 @@ namespace SurePet2Google.Blazor.Server.Services
             this.GooglePetContext.Remove(refreshToken);
         }
 
+        public void DeletePetContextByUsername(string username)
+        {
+            if (username == null)
+            {
+                return;
+            }
+
+            foreach (var refreshToken in this.GooglePetContext.Keys.ToList())
+            {
+                this.DeletePetContextByRefresh(refreshToken);
+            }
+        }
+
         public PetContext? GetPetContextByAccess(string accessToken)
         {
             return accessToken == null

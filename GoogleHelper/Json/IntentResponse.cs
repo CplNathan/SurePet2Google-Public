@@ -40,17 +40,16 @@ namespace GoogleHelper.Json
     public class ExecutePayload : ResponsePayload
     {
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string errorCode { get; set; }
+        public string? errorCode { get; set; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string debugString { get; set; }
+        public string? debugString { get; set; }
 
         public List<ExecuteDeviceData> commands { get; set; }
     }
 
     // Important for polymorphism
     [JsonDerivedType(typeof(LockDeviceData))]
-    [JsonDerivedType(typeof(ThermostatDeviceData))]
     public class QueryDeviceData
     {
         public string status { get; set; }
@@ -62,19 +61,6 @@ namespace GoogleHelper.Json
         public bool isLocked { get; set; }
         public bool isJammed { get; set; }
         public string descriptiveCapacityRemaining { get; set; }
-    }
-
-    public class ThermostatDeviceData : QueryDeviceData
-    {
-        public string thermostatMode { get; set; }
-        public decimal thermostatTemperatureSetpoint { get; set; }
-        public decimal thermostatTemperatureAmbient { get; set; }
-    }
-
-    public class ValueUnit
-    {
-        public int rawValue { get; set; }
-        public string unit { get; set; }
     }
 
     [JsonDerivedType(typeof(ExecuteDeviceDataSuccess))]
@@ -95,14 +81,10 @@ namespace GoogleHelper.Json
     {
         public ExecuteDeviceDataError() { }
 
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string errorCode { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string errorCodeReason { get; set; }
     }
-
-    public class Color
-    {
-        public string name { get; set; }
-        public int spectrumRGB { get; set; }
-    }
-
 }

@@ -87,7 +87,7 @@ namespace SurePet2Google.Blazor.Server.Services.Notifications
                         var currentLocation = (PetPosition)currentPosition.where;
                         string objectName = currentLocation == PetPosition.Outside ? $"{currentPosition.pet_name} Left" : $"{currentPosition.pet_name} Entered";
 
-                        this.GoogleService.ProvideObjectDetection(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], currentContext.GoogleAccessToken, triggeredDevice.Key, objectName);
+                        this.GoogleService.ProvideObjectDetection(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], currentContext.GoogleAccessToken, triggeredDevice.Key, objectName, cancellationToken);
                     }
                 }
             }

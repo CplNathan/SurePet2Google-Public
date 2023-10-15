@@ -11,8 +11,9 @@ namespace SurePet2Google.Blazor.Server.Models.Responses.Timeline
 
     public enum MovementType
     {
-        UnknownPeeked = 13,
-        UnknownMoved = 11,
+        // Not sure what the difference is here, upon inspecting API both seem to be 'unknown moved' so can't see why there is both?
+        UnknownMovedOrPeekedA = 13,
+        UnknownMovedOrPeekedB = 11,
         KnownMoved = 6,
         KnownPeeked = 4,
     }

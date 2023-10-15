@@ -31,13 +31,15 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
             return Task.FromResult(false);
         }
 
-        public override async Task<TResponse> QueryAsyncImplementation<TResponse>(PetContext session, HubModel deviceModel, string deviceId)
+        public override async Task<TResponse> QueryAsyncImplementation<TResponse>(PetContext session, HubModel deviceModel, string deviceId, CancellationToken token)
         {
             return await Task.Run(() =>
-            (TResponse)(QueryDeviceData)new LockDeviceData()
             {
-                online = true,
-                status = "SUCCESS"
+                return (TResponse)(QueryDeviceData)new LockDeviceData()
+                {
+                    online = true,
+                    status = "SUCCESS"
+                };
             });
         }
 

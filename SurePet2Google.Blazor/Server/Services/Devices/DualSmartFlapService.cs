@@ -24,17 +24,11 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
         // THIS WAS HELLLLLLLLLLLLL ON EARTH BLOODY FIRE TO DEBUG WOW.
         public override async Task<TResponse> ExecuteAsyncImplementation<TResponse>(PetContext session, FlapModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token)
         {
-            CancellationTokenSource cancellationToken = new();
-
             LockStatus lockRequest = data["lock"]?.GetValue<bool?>() ?? true ? LockStatus.EnterOnly : LockStatus.Unlocked;
             string? followUpToken = data["followUpToken"]?.GetValue<string?>();
 
-            Task<LockStatus?> lockExecute = this.SurePetService.UpdateLock(session.SurePetBearerToken, deviceId, lockRequest, token);
-            Task<double?> batteryQuery = this.SurePetService.GetBattery(session.SurePetBearerToken, deviceId, token);
-            Task<bool?> onlineQuery = this.SurePetService.GetOnline(session.SurePetBearerToken, deviceId, token);
-            Task<LockStatus?> lockQuery = this.SurePetService.GetLock(session.SurePetBearerToken, deviceId, token);
-
-            if (lockQuery is null)
+            var deviceStatus = await this.SurePetService.GetStatus(session.SurePetBearerToken, deviceId, token);
+            if (deviceStatus.lockStatus is LockStatus.Unknown)
             {
                 return (TResponse)(ExecuteDeviceData)new ExecuteDeviceDataError()
                 {
@@ -42,42 +36,46 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
                     errorCode = "relinkRequired"
                 };
             }
-            else if ((await lockQuery) == lockRequest)
+            else if (deviceStatus.lockStatus == lockRequest)
             {
                 return (TResponse)(ExecuteDeviceData)new ExecuteDeviceDataError()
                 {
                     status = "FAILURE",
-                    errorCode = (await lockQuery is LockStatus.EnterOnly or LockStatus.Locked) ? "alreadyLocked" : "alreadyUnlocked"
+                    errorCode = (deviceStatus.lockStatus is LockStatus.EnterOnly or LockStatus.Locked) ? "alreadyLocked" : "alreadyUnlocked"
                 };
             }
-            else
+
+            if (deviceStatus.onlineStatus == false)
             {
-                bool allCompleted = Task.WaitAll(new Task[] { batteryQuery, lockExecute, lockQuery, onlineQuery }, 2500);
-
-                if ((await onlineQuery) == false)
+                return (TResponse)(ExecuteDeviceData)new ExecuteDeviceDataError()
                 {
-                    return (TResponse)(ExecuteDeviceData)new ExecuteDeviceDataError()
+                    status = "FAILURE",
+                    states = new JsonObject()
                     {
-                        status = "FAILURE",
-                        states = new JsonObject()
-                        {
-                            { "online", false },
-                        },
-                        errorCode = "deviceOffline"
-                    };
-                }
-                else if (followUpToken is not null && !allCompleted)
-                {
-                    new Thread(async () =>
-                    {
-                        var completedSuccess = Task.WaitAll(new Task[] { lockExecute }, 10000);
+                        { "online", false },
+                    },
+                    errorCode = "deviceOffline"
+                };
+            }
 
-                        JsonObject followUpData = new JsonObject()
-                        {
+            Task<LockStatus> lockExecute = Task.FromResult(LockStatus.Unknown);
+            if (!token.IsCancellationRequested)
+            {
+                lockExecute = this.SurePetService.UpdateLock(session.SurePetBearerToken, deviceId, lockRequest, token);
+            }
+
+            if (!string.IsNullOrEmpty(followUpToken))
+            {
+                var followUpTask = Task.Run(async () =>
+                {
+                    var lockExecuteResult = await lockExecute;
+
+                    JsonObject followUpData = new JsonObject()
+                    {
                             { "priority", 0 },
                             {
                                 "followUpResponse",
-                                !completedSuccess ? new JsonObject()
+                                lockExecuteResult is LockStatus.Unknown ? new JsonObject()
                                 {
                                     { "status", "FAILURE" },
                                     { "errorCode", "deviceOffline" },
@@ -85,42 +83,44 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
                                 } : new JsonObject()
                                 {
                                     { "status", "SUCCESS" },
-                                    { "isLocked", await lockExecute == LockStatus.EnterOnly || await lockExecute == LockStatus.Locked },
+                                    { "isLocked", (await lockExecute) is LockStatus.EnterOnly or LockStatus.Locked },
                                     { "followUpToken",  followUpToken }
                                 }
                             }
-                        };
+                    };
 
-                        await this.GoogleService.ProvideFollowUp(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], session.GoogleAccessToken, requestId, deviceId, "LockUnlock", followUpData);
-                    }).Start();
+                    await this.GoogleService.ProvideFollowUp(this.Configuration["Google:Homegraph:private_key"], this.Configuration["Google:Homegraph:private_key_id"], this.Configuration["Google:Homegraph:client_email"], session.GoogleAccessToken, requestId, deviceId, "LockUnlock", followUpData, token);
+                });
 
+                var completedInTime = followUpTask.Wait(2500);
+
+                if (!completedInTime)
+                {
                     return (TResponse)new ExecuteDeviceData()
                     {
                         status = "PENDING",
                         states = new JsonObject()
                         {
-                            { "online", await lockQuery != null },
-                            { "isLocked", await lockQuery == LockStatus.EnterOnly || await lockQuery == LockStatus.Locked },
+                            { "online", deviceStatus.onlineStatus },
+                            { "isLocked", deviceStatus.lockStatus is LockStatus.EnterOnly or LockStatus.Locked },
                             { "isJammed", false },
-                            { "descriptiveCapacityRemaining", this.GetDescriptiveBattery(await batteryQuery, 4) },
-                        }
-                    };
-                }
-                else
-                {
-                    return (TResponse)new ExecuteDeviceData()
-                    {
-                        status = "SUCCESS",
-                        states = new JsonObject()
-                        {
-                            { "online", await lockExecute != null },
-                            { "isLocked", await lockExecute == LockStatus.EnterOnly || await lockExecute == LockStatus.Locked },
-                            { "isJammed", false },
-                            { "descriptiveCapacityRemaining", this.GetDescriptiveBattery(await batteryQuery, 4) },
+                            { "descriptiveCapacityRemaining", this.GetDescriptiveBattery(deviceStatus.batteryStatus, 4) },
                         }
                     };
                 }
             }
+
+            return (TResponse)new ExecuteDeviceData()
+            {
+                status = "SUCCESS",
+                states = new JsonObject()
+                {
+                    { "online", deviceStatus.onlineStatus },
+                    { "isLocked", (await lockExecute) is LockStatus.EnterOnly or LockStatus.Locked },
+                    { "isJammed", false },
+                    { "descriptiveCapacityRemaining", this.GetDescriptiveBattery(deviceStatus.batteryStatus, 4) },
+                }
+            };
         }
 
         public override Task<bool> FetchAsyncImplementation(PetContext session, FlapModel deviceModel, string deviceId, bool forceFetch = false)
@@ -128,22 +128,19 @@ namespace SurePet2Google.Blazor.Server.Services.Devices
             throw new NotImplementedException();
         }
 
-        public override async Task<TResponse> QueryAsyncImplementation<TResponse>(PetContext session, FlapModel deviceModel, string deviceId)
+        public override async Task<TResponse> QueryAsyncImplementation<TResponse>(PetContext session, FlapModel deviceModel, string deviceId, CancellationToken token)
         {
             CancellationTokenSource cancellationToken = new();
 
-            Task<LockStatus?> lockResult = this.SurePetService.GetLock(session.SurePetBearerToken, deviceId, cancellationToken.Token);
-            Task<double?> batteryResult = this.SurePetService.GetBattery(session.SurePetBearerToken, deviceId, cancellationToken.Token);
-
-            Task.WaitAll(lockResult, batteryResult);
+            var deviceStatus = await this.SurePetService.GetStatus(session.SurePetBearerToken, deviceId, token);
 
             return (TResponse)(QueryDeviceData)new LockDeviceData()
             {
-                online = await lockResult != null,
+                online = deviceStatus.onlineStatus,
                 status = "SUCCESS",
                 isJammed = false,
-                isLocked = await lockResult is LockStatus.Locked or LockStatus.EnterOnly,
-                descriptiveCapacityRemaining = this.GetDescriptiveBattery(await batteryResult, 4)
+                isLocked = deviceStatus.lockStatus is LockStatus.Locked or LockStatus.EnterOnly,
+                descriptiveCapacityRemaining = this.GetDescriptiveBattery(deviceStatus.batteryStatus, 4)
             };
         }
 

@@ -2,6 +2,7 @@
 using Flurl.Http;
 using GoogleHelper.Models;
 using GoogleHelper.Services;
+using SurePet2Google.Blazor.Server.Context;
 using SurePet2Google.Blazor.Server.Models.Responses.Auth;
 using SurePet2Google.Blazor.Server.Models.Responses.Devices;
 using SurePet2Google.Blazor.Server.Models.Responses.Pets;
@@ -11,6 +12,7 @@ namespace SurePet2Google.Blazor.Server.Services
 {
     public enum LockStatus
     {
+        Unknown = -1,
         Unlocked = 0,
         EnterOnly = 1,
         ExitOnly = 2,
@@ -92,45 +94,39 @@ namespace SurePet2Google.Blazor.Server.Services
             return response;
         }
 
-        public async Task<LockStatus?> GetLock(string bearer, string deviceId, CancellationToken cancellationToken)
+        public async Task<(LockStatus lockStatus, double? batteryStatus, bool onlineStatus)> GetStatus(string bearer, string deviceId, CancellationToken cancellationToken)
         {
-            GetDevice response = await this
-                .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
-                .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
+            try
+            {
+                GetDevice response = await this
+                    .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
+                    .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
 
-            int? lockData = response?.data?["locking"]?["mode"]?.GetValue<int?>();
+                int? lockData = response?.data?["locking"]?["mode"]?.GetValue<int?>();
+                double? batteryData = response?.data?["battery"]?.GetValue<double?>();
+                bool onlineData = response?.data?["online"]?.GetValue<bool?>() ?? false;
 
-            return (LockStatus?)lockData ?? null;
-        }
-
-        public async Task<double?> GetBattery(string bearer, string deviceId, CancellationToken cancellationToken)
-        {
-            GetDevice response = await this
-                .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
-                .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
-
-            return response?.data?["battery"]?.GetValue<double?>();
-        }
-
-        public async Task<bool?> GetOnline(string bearer, string deviceId, CancellationToken cancellationToken)
-        {
-            GetDevice response = await this
-                .MakeRequest(BaseUrl, StatusEndpoint.Replace("{device}", deviceId), bearer)
-                .GetJsonAsync<GetDevice>(cancellationToken: cancellationToken);
-
-            return response?.data?["online"]?.GetValue<bool?>();
+                return ((LockStatus)(lockData ?? -1), batteryData, onlineData);
+            }
+            catch
+            {
+                return (LockStatus.Unknown, null, false);
+            }
         }
 
         public async Task<GetTimeline?> GetTimeline(string bearer, CancellationToken cancellationToken)
         {
-            GetTimeline response = await this
-                .MakeRequest(BaseUrl, TimelineEndpoint, bearer)
-                .GetJsonAsync<GetTimeline>(cancellationToken: cancellationToken);
+            var response = await GlobalHttpContext.BuildRetryPolicy().ExecuteAsync(async () =>
+            {
+                return (await this
+                    .MakeRequest(BaseUrl, TimelineEndpoint, bearer)
+                    .GetAsync()).ResponseMessage;
+            });
 
-            return response;
+            return await response.Content.ReadFromJsonAsync<GetTimeline>();
         }
 
-        public async Task<LockStatus?> UpdateLock(string bearer, string deviceId, LockStatus newStatus, CancellationToken cancellationToken)
+        public async Task<LockStatus> UpdateLock(string bearer, string deviceId, LockStatus newStatus, CancellationToken cancellationToken)
         {
             ControlDevice response = await this
                 .MakeRequest(BaseUrl, ControlEndpoint.Replace("{device}", deviceId), bearer)
@@ -143,7 +139,7 @@ namespace SurePet2Google.Blazor.Server.Services
 
             int? lockData = response?.data?["locking"]?.GetValue<int?>();
 
-            return (LockStatus?)lockData ?? null;
+            return ((LockStatus?)lockData) ?? LockStatus.Unknown;
         }
 
         public Dictionary<string, BaseDeviceModel> ParseDevices(GetDevices devices, IEnumerable<IDeviceService> supportedDevices)

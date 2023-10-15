@@ -33,28 +33,35 @@ namespace SurePet2Google.Blazor.Server.Controllers
         {
             //contacts.Save("data.xml");
 
-            string bearer = this.HttpContext.Request.Headers.Authorization;
-            bearer = bearer.Split("Bearer ")[1];
+            string? bearer = this.HttpContext.Request.Headers.Authorization;
+            bearer = bearer?.Split("Bearer ")?[1];
 
-            PetContext? context = this.PersistenceService.GetPetContextByAccess(bearer);
+            if (bearer != null)
+            {
+                PetContext? context = this.PersistenceService.GetPetContextByAccess(bearer);
 
-            GoogleIntentResponse response = await this.GoogleService.HandleGoogleResponse(context, request, this.SupportedDevices, bearer, token);
+                if (context != null)
+                {
+                    GoogleIntentResponse response = await this.GoogleService.HandleGoogleResponse(context, request, this.SupportedDevices, bearer, token);
 
-            return this.Json(response);
+                    return this.Json(response);
+                }
+            }
+            return this.BadRequest();
         }
 
         [HttpPost]
         [Consumes("application/x-www-form-urlencoded")]
-        public JsonResult Token([FromForm] IFormCollection form)
+        public IActionResult Token([FromForm] IFormCollection form)
         {
             if (form == null || form.Count <= 0)
             {
-                return this.Json(this.BadRequest());
+                return this.BadRequest();
             }
 
             if (form["client_secret"] != this.Configuration["Google:client_secret"] || form["client_id"] != this.Configuration["Google:client_id"])
             {
-                return this.Json(this.BadRequest());
+                return this.BadRequest();
             }
 
             switch (form["grant_type"])
@@ -66,37 +73,41 @@ namespace SurePet2Google.Blazor.Server.Controllers
                             return this.Json(this.BadRequest());
                         }
 
-                        Microsoft.Extensions.Primitives.StringValues refreshToken = form["code"];
-                        PetContext? context = this.PersistenceService.GetPetContextByRefresh(refreshToken);
-                        if (context == null)
+                        string? refreshToken = form?["code"];
+                        if (refreshToken != null)
                         {
-                            return this.Json(this.BadRequest());
+                            PetContext? context = this.PersistenceService.GetPetContextByRefresh(refreshToken);
+                            if (context != null)
+                            {
+                                this.PersistenceService.DeletePetContextByRefresh(refreshToken);
+
+                                refreshToken = Guid.NewGuid().ToString();
+
+                                this.PersistenceService.AddOrUpdatePetContext(context, refreshToken);
+                                context.GoogleAccessToken = Guid.NewGuid().ToString();
+
+                                return this.Json(new RefreshTokenDto(refreshToken, context.GoogleAccessToken));
+                            }
                         }
 
-                        this.PersistenceService.DeletePetContextByRefresh(refreshToken);
-
-                        refreshToken = Guid.NewGuid().ToString();
-
-                        this.PersistenceService.AddOrUpdatePetContext(context, refreshToken);
-                        context.GoogleAccessToken = Guid.NewGuid().ToString();
-
-                        return this.Json(new RefreshTokenDto(refreshToken, context.GoogleAccessToken));
+                        return this.BadRequest();
                     }
                 case "refresh_token":
                     {
                         PetContext? context = this.PersistenceService.GetPetContextByRefresh(form["refresh_token"].ToString());
-                        if (context == null)
+                        if (context != null)
                         {
-                            return this.Json(this.BadRequest());
+
+                            context.GoogleAccessToken = Guid.NewGuid().ToString();
+
+                            return this.Json(new AccessTokenDto(context.GoogleAccessToken));
                         }
 
-                        context.GoogleAccessToken = Guid.NewGuid().ToString();
-
-                        return this.Json(new AccessTokenDto(context.GoogleAccessToken));
+                        return this.BadRequest();
                     }
 
                 default:
-                    return this.Json(this.BadRequest());
+                    return this.BadRequest();
             }
         }
     }

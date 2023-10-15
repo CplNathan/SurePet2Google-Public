@@ -7,7 +7,7 @@ namespace GoogleHelper.Services
 {
     public interface IDeviceService
     {
-        public Task<TResponse> QueryAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId)
+        public Task<TResponse> QueryAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, CancellationToken token)
             where TResponse : QueryDeviceData, new();
         public Task<TResponse> ExecuteAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token)
             where TResponse : ExecuteDeviceData, new();
@@ -38,15 +38,15 @@ namespace GoogleHelper.Services
 
         public List<string> ModelIdentifiers => this.DeviceModel.ModelIdentifiers;
 
-        public abstract Task<TResponse> QueryAsyncImplementation<TResponse>(TContext session, TModel deviceModel, string deviceId) where TResponse : QueryDeviceData, new();
+        public abstract Task<TResponse> QueryAsyncImplementation<TResponse>(TContext session, TModel deviceModel, string deviceId, CancellationToken token) where TResponse : QueryDeviceData, new();
 
         public abstract Task<TResponse> ExecuteAsyncImplementation<TResponse>(TContext session, TModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token) where TResponse : ExecuteDeviceData, new();
 
         public abstract Task<bool> FetchAsyncImplementation(TContext session, TModel deviceModel, string deviceId, bool forceFetch = false);
 
-        public async Task<TResponse> QueryAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId) where TResponse : QueryDeviceData, new()
+        public async Task<TResponse> QueryAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, CancellationToken token) where TResponse : QueryDeviceData, new()
         {
-            return await this.QueryAsyncImplementation<TResponse>((TContext)session, (TModel)deviceModel, deviceId);
+            return await this.QueryAsyncImplementation<TResponse>((TContext)session, (TModel)deviceModel, deviceId, token);
         }
 
         public async Task<TResponse> ExecuteAsync<TResponse>(BaseContext session, BaseDeviceModel deviceModel, string deviceId, string requestId, JsonObject data, CancellationToken token) where TResponse : ExecuteDeviceData, new()

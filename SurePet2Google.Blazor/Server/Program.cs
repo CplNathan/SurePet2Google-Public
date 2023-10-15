@@ -1,5 +1,6 @@
 using Flurl.Http;
 using GoogleHelper.Services;
+using SurePet2Google.Blazor.Client;
 using SurePet2Google.Blazor.Server.Context;
 using SurePet2Google.Blazor.Server.Services;
 using SurePet2Google.Blazor.Server.Services.Devices;
@@ -16,12 +17,15 @@ namespace SurePet2Google.Blazor.Server
             // Add services to the container.
             builder.Configuration.AddEnvironmentVariables();
 
-            builder.WebHost.UseUrls(builder.Configuration["APPLICATION_URL"] ?? string.Empty);
+            //builder.WebHost.UseUrls(builder.Configuration["APPLICATION_URL"] ?? string.Empty);
+            builder.WebHost.UseUrls("http://*:8080");
 
             builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
+            if (builder.Environment.IsDevelopment())
+            {
+                builder.Services.AddEndpointsApiExplorer();
+            }
             builder.Services.AddLogging();
 
             builder.Services.AddScoped(typeof(IDeviceService), typeof(DualSmartFlapService));
@@ -36,7 +40,7 @@ namespace SurePet2Google.Blazor.Server
 
                 settings.BeforeCall = beforeCall;
                 settings.BeforeCallAsync = async (httpCall) => await Task.Run(() => beforeCall.Invoke(httpCall));
-                settings.HttpClientFactory = new GlobalHttpContext();
+                settings.FlurlClientFactory = new GlobalHttpContext();
             });
 
             builder.Services.AddSingleton<GoogleService<PetContext>>();

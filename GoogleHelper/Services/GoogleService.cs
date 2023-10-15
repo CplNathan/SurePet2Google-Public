@@ -1,5 +1,6 @@
 // Copyright (c) Nathan Ford. All rights reserved. Class1.cs
 
+using Flurl;
 using Flurl.Http;
 using GoogleHelper.Context;
 using GoogleHelper.Json;
@@ -55,14 +56,14 @@ namespace GoogleHelper.Services
             return token;
         }
 
-        public async Task ProvideFollowUp(string privateKey, string privateKeyId, string clientEmail, string agentUserId, string requestId, string deviceId, string deviceAction, JsonObject data)
+        public async Task ProvideFollowUp(string privateKey, string privateKeyId, string clientEmail, string agentUserId, string requestId, string deviceId, string deviceAction, JsonObject data, CancellationToken token)
         {
-            string token = this.BuildSignedJWT(privateKey, privateKeyId, clientEmail, agentUserId);
+            string authToken = this.BuildSignedJWT(privateKey, privateKeyId, clientEmail, agentUserId);
 
             try
             {
                 IFlurlResponse unused = await "https://homegraph.googleapis.com/v1/devices:reportStateAndNotification"
-                    .WithOAuthBearerToken(token)
+                    .WithOAuthBearerToken(authToken)
                     .PostJsonAsync(new HomegraphResponse()
                     {
                         agentUserId = agentUserId,
@@ -85,7 +86,7 @@ namespace GoogleHelper.Services
                                 }
                             }
                         }
-                    }, cancellationToken: CancellationToken.None);
+                    }, cancellationToken: token);
             }
             catch (Exception ex)
             {
@@ -93,14 +94,14 @@ namespace GoogleHelper.Services
             }
         }
 
-        public async Task ProvideObjectDetection(string privateKey, string privateKeyId, string clientEmail, string agentUserId, string deviceId, string objectName)
+        public async Task ProvideObjectDetection(string privateKey, string privateKeyId, string clientEmail, string agentUserId, string deviceId, string objectName, CancellationToken token)
         {
-            string token = this.BuildSignedJWT(privateKey, privateKeyId, clientEmail, agentUserId);
+            string authToken = this.BuildSignedJWT(privateKey, privateKeyId, clientEmail, agentUserId);
 
             try
             {
                 IFlurlResponse unused = await "https://homegraph.googleapis.com/v1/devices:reportStateAndNotification"
-                    .WithOAuthBearerToken(token)
+                    .WithOAuthBearerToken(authToken)
                     .PostJsonAsync(new HomegraphResponse()
                     {
                         agentUserId = agentUserId,
@@ -134,7 +135,7 @@ namespace GoogleHelper.Services
                                 }
                             }
                         }
-                    }, cancellationToken: CancellationToken.None);
+                    }, cancellationToken: token);
             }
             catch (Exception ex)
             {
@@ -142,11 +143,11 @@ namespace GoogleHelper.Services
             }
         }
 
-        public async Task<GoogleIntentResponse?> HandleGoogleResponse(TContext context, GoogleIntentRequest request, IEnumerable<IDeviceService> supportedDevices, string sessionId, CancellationToken token)
+        public async Task<GoogleIntentResponse> HandleGoogleResponse(TContext? context, GoogleIntentRequest request, IEnumerable<IDeviceService> supportedDevices, string sessionId, CancellationToken token)
         {
             if (context is null)
             {
-                return null;
+                throw new InvalidOperationException("Invalid context provided to Google handler.");
             }
 
             GoogleIntentResponse response = new(request);
@@ -174,7 +175,7 @@ namespace GoogleHelper.Services
                         {
                             IEnumerable<IGrouping<IDeviceService, KeyValuePair<string, BaseDeviceModel>>> groupedServiceModels = this.GroupedSupportedDevices(context, supportedDevices, action.payload?.devices);
 
-                            Dictionary<string, Task<QueryDeviceData>> deviceQueryTasks = groupedServiceModels.SelectMany(gp => gp.Select(device => (device.Key, gp.Key.QueryAsync<QueryDeviceData>(context, device.Value, device.Key))))
+                            Dictionary<string, Task<QueryDeviceData>> deviceQueryTasks = groupedServiceModels.SelectMany(gp => gp.Select(device => (device.Key, gp.Key.QueryAsync<QueryDeviceData>(context, device.Value, device.Key, token))))
                                 .ToDictionary(item => item.Key, item => item.Item2);
 
                             IEnumerable<(string First, QueryDeviceData Second)> deviceQueryResults = deviceQueryTasks.Keys.Zip(await Task.WhenAll(deviceQueryTasks.Values));
@@ -196,8 +197,8 @@ namespace GoogleHelper.Services
                     case "EXECUTE":
                         {
                             List<ExecuteDeviceData> executedCommands = new();
-                            string errorCode = null;
-                            string debugMessage = null;
+                            string? errorCode = null;
+                            string? debugMessage = null;
 
                             try
                             {
@@ -205,21 +206,21 @@ namespace GoogleHelper.Services
                                 {
                                     IEnumerable<IGrouping<IDeviceService, KeyValuePair<string, BaseDeviceModel>>> groupedServiceModels = this.GroupedSupportedDevices(context, supportedDevices, command?.devices);
 
-                                    foreach (Execution execution in command.execution)
+                                    foreach (Execution execution in command?.execution ?? Enumerable.Empty<Execution>())
                                     {
                                         List<string> updatedIds = new();
 
-                                        string parsedCommand = execution.command.Split("action.devices.commands.")[1];
+                                        // string parsedCommand = execution.command.Split("action.devices.commands.")[1];
 
                                         Dictionary<string, Task<ExecuteDeviceData>> deviceExecuteTasks = groupedServiceModels.SelectMany(gp => gp.Select(device => (device.Key, gp.Key.ExecuteAsync<ExecuteDeviceData>(context, device.Value, device.Key, request.requestId/*parsedCommand*/, execution._params, token))))
                                             .ToDictionary(item => item.Key, item => item.Item2);
 
-                                        IEnumerable<(string First, ExecuteDeviceData Second)> deviceExecuteResults = deviceExecuteTasks.Keys.Zip(await Task.WhenAll(deviceExecuteTasks.Values));
+                                        IEnumerable<(string deviceKey, ExecuteDeviceData deviceData)> deviceExecuteResults = deviceExecuteTasks.Keys.Zip(await Task.WhenAll(deviceExecuteTasks.Values));
 
-                                        foreach ((string First, ExecuteDeviceData Second) in deviceExecuteResults)
+                                        foreach ((string deviceKey, ExecuteDeviceData deviceData) in deviceExecuteResults)
                                         {
-                                            ExecuteDeviceData state = Second;
-                                            state.ids = new List<string>() { First };
+                                            ExecuteDeviceData state = deviceData;
+                                            state.ids = new List<string>() { deviceKey };
 
                                             executedCommands.Add(state);
                                         }
